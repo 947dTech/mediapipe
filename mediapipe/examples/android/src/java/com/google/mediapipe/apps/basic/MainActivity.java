@@ -26,6 +26,13 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.MenuInflater;
+import android.content.Intent;
+import androidx.appcompat.widget.Toolbar;
+import android.content.SharedPreferences;
+import androidx.preference.PreferenceManager;
 import com.google.mediapipe.components.CameraHelper;
 import com.google.mediapipe.components.CameraXPreviewHelper;
 import com.google.mediapipe.components.ExternalTextureConverter;
@@ -85,10 +92,16 @@ public class MainActivity extends AppCompatActivity {
   // ApplicationInfo for retrieving metadata defined in the manifest.
   private ApplicationInfo applicationInfo;
 
+  // 947d: udp sender
+  protected UDPSender sender;
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(getContentViewLayoutResId());
+
+    Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+    setSupportActionBar(toolbar);
 
     try {
       applicationInfo =
@@ -126,6 +139,24 @@ public class MainActivity extends AppCompatActivity {
   }
 
   @Override
+  public boolean onCreateOptionsMenu(Menu menu) {
+    MenuInflater inflater = getMenuInflater();
+    inflater.inflate(R.menu.menu_main, menu);
+    return true;
+  }
+
+  @Override
+  public boolean onOptionsItemSelected(MenuItem item) {
+    if (item.getItemId() == R.id.action_settings) {
+      Intent intent = new Intent(this, SettingsActivity.class);
+      startActivity(intent);
+      return true;
+    } else {
+      return super.onOptionsItemSelected(item);
+    }
+  }
+
+  @Override
   protected void onResume() {
     super.onResume();
     converter =
@@ -138,12 +169,25 @@ public class MainActivity extends AppCompatActivity {
     if (PermissionHelper.cameraPermissionsGranted(this)) {
       startCamera();
     }
+
+    SharedPreferences sharedPreferences =
+        PreferenceManager.getDefaultSharedPreferences(this);
+    String ip = sharedPreferences.getString("ipaddr", "192.168.11.3");
+
+    sender = new UDPSender();
+    int port = 0x947d;
+    sender.setIP(ip);
+    sender.setPort(port);
+    sender.start();
+    Log.v(TAG, "UDP Sender started with IP: " + ip + ", port: " + port + ".");
   }
 
   @Override
   protected void onPause() {
     super.onPause();
     converter.close();
+    sender.setRunning(false);
+    Log.v(TAG, "UDP Sender stopped.");
 
     // Hide preview display until we re-open the camera again.
     previewDisplayView.setVisibility(View.GONE);
