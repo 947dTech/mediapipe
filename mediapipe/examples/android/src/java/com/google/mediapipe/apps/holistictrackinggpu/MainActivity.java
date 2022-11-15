@@ -23,6 +23,7 @@ import org.json.JSONException;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.util.Size;
 import android.view.WindowManager;
 import android.content.Context;
 import android.hardware.Sensor;
@@ -49,7 +50,7 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
- 
+
     jsonObj = new JSONObject();
 
     sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -61,6 +62,17 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
       (packet) -> {
         Log.v(TAG, "Received pose landmarks packet.");
         try {
+          // camera params
+          JSONObject cameraParams = new JSONObject();
+          try {
+            cameraParams.put("focal_length", cameraHelper.getFocalLengthPixels());
+            cameraParams.put("frame_width", cameraHelper.getFrameSize().getWidth());
+            cameraParams.put("frame_height", cameraHelper.getFrameSize().getHeight());
+            jsonObj.put("camera_params", cameraParams);
+          } catch (JSONException e) {
+            Log.e(TAG, "CameraParams: " + e.getMessage());
+          }
+
           byte[] landmarksRaw = PacketGetter.getProtoBytes(packet);
           NormalizedLandmarkList landmarks =
             NormalizedLandmarkList.parseFrom(landmarksRaw);
@@ -155,7 +167,7 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
             NormalizedLandmarkList.parseFrom(landmarksRaw);
 
           if (landmarks.getLandmarkCount() > 0) {
-            JSONArray jsonArr = convertLandmarksToJson(landmarks);
+            JSONArray jsonArr = convertLandmarksToJson(landmarks, false, false);
             synchronized(this) {
               try {
                 jsonObj.put("face_landmarks", jsonArr);
@@ -277,18 +289,41 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     return landmarkStr;
   }
 
-  private static JSONArray convertLandmarksToJson(NormalizedLandmarkList landmarks) {
+  private static double truncateNumber(double vi) {
+    return ((int)(0.5 + vi * 1e3)) * 1e-3;
+  }
+
+  private static JSONArray convertLandmarksToJson(
+    NormalizedLandmarkList landmarks
+  ) {
+    return convertLandmarksToJson(landmarks, true, true);
+  }
+
+  private static JSONArray convertLandmarksToJson(
+    NormalizedLandmarkList landmarks,
+    boolean visibility,
+    boolean presence
+  ) {
     JSONArray json_arr = new JSONArray();
     try {
       if (landmarks.getLandmarkCount() > 0) {
         int landmarkIndex = 0;
         for (NormalizedLandmark landmark : landmarks.getLandmarkList()) {
           JSONObject json_pt = new JSONObject();
-          json_pt.put("x", landmark.getX());
-          json_pt.put("y", landmark.getY());
-          json_pt.put("z", landmark.getZ());
-          json_pt.put("visibility", landmark.getVisibility());
-          json_pt.put("presence", landmark.getPresence());
+          // json_pt.put("x", landmark.getX());
+          // json_pt.put("y", landmark.getY());
+          // json_pt.put("z", landmark.getZ());
+          json_pt.put("x", truncateNumber(landmark.getX()));
+          json_pt.put("y", truncateNumber(landmark.getY()));
+          json_pt.put("z", truncateNumber(landmark.getZ()));
+          if (visibility) {
+            // json_pt.put("visibility", landmark.getVisibility());
+            json_pt.put("visibility", truncateNumber(landmark.getVisibility()));
+          }
+          if (presence) {
+            // json_pt.put("presence", landmark.getPresence());
+            json_pt.put("presence", truncateNumber(landmark.getPresence()));
+          }
           json_arr.put(json_pt);
           ++landmarkIndex;
         }
@@ -298,19 +333,38 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     }
     return json_arr;
   }
-  
-  private static JSONArray convertLandmarksToJson(LandmarkList landmarks) {
+
+  private static JSONArray convertLandmarksToJson(
+    LandmarkList landmarks
+  ) {
+    return convertLandmarksToJson(landmarks, true, true);
+  }
+
+  private static JSONArray convertLandmarksToJson(
+    LandmarkList landmarks,
+    boolean visibility,
+    boolean presence
+  ) {
     JSONArray json_arr = new JSONArray();
     try {
       if (landmarks.getLandmarkCount() > 0) {
         int landmarkIndex = 0;
         for (Landmark landmark : landmarks.getLandmarkList()) {
           JSONObject json_pt = new JSONObject();
-          json_pt.put("x", landmark.getX());
-          json_pt.put("y", landmark.getY());
-          json_pt.put("z", landmark.getZ());
-          json_pt.put("visibility", landmark.getVisibility());
-          json_pt.put("presence", landmark.getPresence());
+          // json_pt.put("x", landmark.getX());
+          // json_pt.put("y", landmark.getY());
+          // json_pt.put("z", landmark.getZ());
+          json_pt.put("x", truncateNumber(landmark.getX()));
+          json_pt.put("y", truncateNumber(landmark.getY()));
+          json_pt.put("z", truncateNumber(landmark.getZ()));
+          if (visibility) {
+            // json_pt.put("visibility", landmark.getVisibility());
+            json_pt.put("visibility", truncateNumber(landmark.getVisibility()));
+          }
+          if (presence) {
+            // json_pt.put("presence", landmark.getPresence());
+            json_pt.put("presence", truncateNumber(landmark.getPresence()));
+          }
           json_arr.put(json_pt);
           ++landmarkIndex;
         }
