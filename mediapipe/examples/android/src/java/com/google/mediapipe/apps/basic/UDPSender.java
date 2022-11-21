@@ -30,14 +30,13 @@ import org.json.JSONException;
 public class UDPSender extends Thread {
   private static final String TAG = "MainActivity";
 
-  String json_str;
+  JSONObject json_obj;
   boolean updated;
   boolean running;
   InetAddress address;
   int port;
 
   UDPSender() {
-    json_str = new String("");
     updated = false;
     running = true;
   }
@@ -59,9 +58,9 @@ public class UDPSender extends Thread {
   }
 
   public void setJsonData(JSONObject json_data) {
-    Log.v(TAG, "get json data");
+    // Log.v(TAG, "get json data");
     synchronized(this) {
-      json_str = json_data.toString();
+      json_obj = json_data;
       updated = true;
     }
   }
@@ -70,9 +69,11 @@ public class UDPSender extends Thread {
     try {
       DatagramSocket socket = new DatagramSocket();
       while (running) {
+        long t0 = System.currentTimeMillis();
         synchronized(this) {
           if (updated) {
             try {
+              String json_str = json_obj.toString();
               byte[] buffer = json_str.getBytes("UTF-8");
               DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, port);
               try {
@@ -86,10 +87,13 @@ public class UDPSender extends Thread {
             updated = false;
           }
         }
-        try {
-          Thread.sleep(16);
-        } catch (InterruptedException e) {
-          Log.w(TAG, e.getMessage());
+        long t1 = System.currentTimeMillis();
+        if ((t1 - t0) < 16) {
+          try {
+            Thread.sleep(16 - (t1 - t0));
+          } catch (InterruptedException e) {
+            Log.w(TAG, e.getMessage());
+          }
         }
       }
       socket.close();

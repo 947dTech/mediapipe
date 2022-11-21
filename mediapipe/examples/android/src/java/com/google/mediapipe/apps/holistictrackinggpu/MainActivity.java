@@ -41,7 +41,19 @@ import com.google.protobuf.InvalidProtocolBufferException;
 public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity implements SensorEventListener {
   private static final String TAG = "MainActivity";
 
-  private JSONObject jsonObj;
+  private JSONArray jsonGravityArr;
+  private JSONArray jsonPoseArr;
+  private JSONArray jsonPoseWorldArr;
+  private JSONArray jsonFaceArr;
+  private JSONArray jsonRHandArr;
+  private JSONArray jsonLHandArr;
+
+  private long gravity_stamp;
+  private long pose_stamp;
+  private long pose_world_stamp;
+  private long face_stamp;
+  private long left_hand_stamp;
+  private long right_hand_stamp;
 
   private SensorManager sensorManager;
   private Sensor sensor;
@@ -51,7 +63,19 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     super.onCreate(savedInstanceState);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-    jsonObj = new JSONObject();
+    jsonGravityArr = new JSONArray();
+    jsonPoseArr = new JSONArray();
+    jsonPoseWorldArr = new JSONArray();
+    jsonFaceArr = new JSONArray();
+    jsonRHandArr = new JSONArray();
+    jsonLHandArr = new JSONArray();
+
+    gravity_stamp = 0;
+    pose_stamp = 0;
+    pose_world_stamp = 0;
+    face_stamp = 0;
+    left_hand_stamp = 0;
+    right_hand_stamp = 0;
 
     sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
     sensor = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
@@ -60,8 +84,10 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     processor.addPacketCallback(
       "pose_landmarks",
       (packet) -> {
-        Log.v(TAG, "Received pose landmarks packet.");
+        // Log.v(TAG, "Received pose landmarks packet.");
         try {
+          JSONObject jsonObj = new JSONObject();
+
           // camera params
           JSONObject cameraParams = new JSONObject();
           try {
@@ -76,46 +102,41 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
           byte[] landmarksRaw = PacketGetter.getProtoBytes(packet);
           NormalizedLandmarkList landmarks =
             NormalizedLandmarkList.parseFrom(landmarksRaw);
-
+          // Log.v(TAG,
+          //   "[TS:" + packet.getTimestamp() + "] "
+          //   + getLandmarksDebugString(landmarks, "pose"));
           if (landmarks.getLandmarkCount() > 0) {
-            JSONArray jsonArr = convertLandmarksToJson(landmarks);
+            jsonPoseArr = convertLandmarksToJson(landmarks);
+            pose_stamp = packet.getTimestamp();
             synchronized(this) {
               try {
-                jsonObj.put("pose_landmarks", jsonArr);
-                long pose_stamp = packet.getTimestamp();
+                jsonObj.put("pose_landmarks", jsonPoseArr);
                 jsonObj.put("pose_landmarks_stamp", pose_stamp);
 
                 // check timestamp for each landmarks
-                if (jsonObj.has("pose_world_landmarks_stamp")) {
-                  long pose_world_stamp = jsonObj.getLong("pose_world_landmarks_stamp");
-                  if ((pose_world_stamp - pose_stamp) < -3e5) {
-                    jsonObj.remove("pose_world_landmarks");
-                    jsonObj.remove("pose_world_landmarks_stamp");
-                  }
+                if ((pose_world_stamp - pose_stamp) > -3e5) {
+                  jsonObj.put("pose_world_landmarks", jsonPoseWorldArr);
+                  jsonObj.put("pose_world_landmarks_stamp", pose_world_stamp);
                 }
 
-                if (jsonObj.has("face_landmarks_stamp")) {
-                  long face_stamp = jsonObj.getLong("face_landmarks_stamp");
-                  if ((face_stamp - pose_stamp) < -3e5) {
-                    jsonObj.remove("face_landmarks");
-                    jsonObj.remove("face_landmarks_stamp");
-                  }
+                if ((face_stamp - pose_stamp) > -3e5) {
+                  jsonObj.put("face_landmarks", jsonFaceArr);
+                  jsonObj.put("face_landmarks_stamp", face_stamp);
                 }
 
-                if (jsonObj.has("right_hand_landmarks_stamp")) {
-                  long rhand_stamp = jsonObj.getLong("right_hand_landmarks_stamp");
-                  if ((rhand_stamp - pose_stamp) < -3e5) {
-                    jsonObj.remove("right_hand_landmarks");
-                    jsonObj.remove("right_hand_landmarks_stamp");
-                  }
+                if ((right_hand_stamp - pose_stamp) > -3e5) {
+                  jsonObj.put("right_hand_landmarks", jsonRHandArr);
+                  jsonObj.put("right_hand_landmarks_stamp", right_hand_stamp);
                 }
 
-                if (jsonObj.has("left_hand_landmarks_stamp")) {
-                  long lhand_stamp = jsonObj.getLong("left_hand_landmarks_stamp");
-                  if ((lhand_stamp - pose_stamp) < -3e5) {
-                    jsonObj.remove("left_hand_landmarks");
-                    jsonObj.remove("left_hand_landmarks_stamp");
-                  }
+                if ((left_hand_stamp - pose_stamp) > -3e5) {
+                  jsonObj.put("left_hand_landmarks", jsonLHandArr);
+                  jsonObj.put("left_hand_landmarks_stamp", left_hand_stamp);
+                }
+
+                if ((gravity_stamp - pose_stamp) > -3e5) {
+                  jsonObj.put("gravity", jsonGravityArr);
+                  jsonObj.put("gravity_stamp", gravity_stamp);
                 }
 
                 // call setJsonData ONLY in pose_landmarks
@@ -134,21 +155,18 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     processor.addPacketCallback(
       "pose_world_landmarks",
       (packet) -> {
-        Log.v(TAG, "Received pose world landmarks packet.");
+        // Log.v(TAG, "Received pose world landmarks packet.");
         try {
           byte[] landmarksRaw = PacketGetter.getProtoBytes(packet);
           LandmarkList landmarks =
             LandmarkList.parseFrom(landmarksRaw);
-
+          // Log.v(TAG,
+          //   "[TS:" + packet.getTimestamp() + "] "
+          //   + getLandmarksDebugString(landmarks, "face"));
           if (landmarks.getLandmarkCount() > 0) {
-            JSONArray jsonArr = convertLandmarksToJson(landmarks);
             synchronized(this) {
-              try {
-                jsonObj.put("pose_world_landmarks", jsonArr);
-                jsonObj.put("pose_world_landmarks_stamp", packet.getTimestamp());
-              } catch (JSONException e) {
-                Log.e(TAG, "Pose Wolrd: " + e.getMessage());
-              }
+              jsonPoseWorldArr = convertLandmarksToJson(landmarks);
+              pose_world_stamp = packet.getTimestamp();
             }
           }
         } catch (InvalidProtocolBufferException exception) {
@@ -160,21 +178,18 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     processor.addPacketCallback(
       "face_landmarks",
       (packet) -> {
-        Log.v(TAG, "Received face landmarks packet.");
+        // Log.v(TAG, "Received face landmarks packet.");
         try {
           byte[] landmarksRaw = PacketGetter.getProtoBytes(packet);
           NormalizedLandmarkList landmarks =
             NormalizedLandmarkList.parseFrom(landmarksRaw);
-
+          // Log.v(TAG,
+          //   "[TS:" + packet.getTimestamp() + "] "
+          //   + getLandmarksDebugString(landmarks, "face"));
           if (landmarks.getLandmarkCount() > 0) {
-            JSONArray jsonArr = convertLandmarksToJson(landmarks, false, false);
             synchronized(this) {
-              try {
-                jsonObj.put("face_landmarks", jsonArr);
-                jsonObj.put("face_landmarks_stamp", packet.getTimestamp());
-              } catch (JSONException e) {
-                Log.e(TAG, "Face: " + e.getMessage());
-              }
+              jsonFaceArr = convertLandmarksToJson(landmarks, false, false);
+              face_stamp = packet.getTimestamp();
             }
           }
         } catch (InvalidProtocolBufferException exception) {
@@ -186,21 +201,18 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     processor.addPacketCallback(
       "left_hand_landmarks",
       (packet) -> {
-        Log.v(TAG, "Received left hand landmarks packet.");
+        // Log.v(TAG, "Received left hand landmarks packet.");
         try {
           byte[] landmarksRaw = PacketGetter.getProtoBytes(packet);
           NormalizedLandmarkList landmarks =
             NormalizedLandmarkList.parseFrom(landmarksRaw);
-
+          // Log.v(TAG,
+          //   "[TS:" + packet.getTimestamp() + "] "
+          //   + getLandmarksDebugString(landmarks, "left_hand"));
           if (landmarks.getLandmarkCount() > 0) {
-            JSONArray jsonArr = convertLandmarksToJson(landmarks);
             synchronized(this) {
-              try {
-                jsonObj.put("left_hand_landmarks", jsonArr);
-                jsonObj.put("left_hand_landmarks_stamp", packet.getTimestamp());
-              } catch (JSONException e) {
-                Log.e(TAG, "Left hand: " + e.getMessage());
-              }
+              jsonLHandArr = convertLandmarksToJson(landmarks);
+              left_hand_stamp = packet.getTimestamp();
             }
           }
         } catch (InvalidProtocolBufferException exception) {
@@ -212,21 +224,18 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     processor.addPacketCallback(
       "right_hand_landmarks",
       (packet) -> {
-        Log.v(TAG, "Received right hand landmarks packet.");
+        // Log.v(TAG, "Received right hand landmarks packet.");
         try {
           byte[] landmarksRaw = PacketGetter.getProtoBytes(packet);
           NormalizedLandmarkList landmarks =
             NormalizedLandmarkList.parseFrom(landmarksRaw);
-
+          // Log.v(TAG,
+          //   "[TS:" + packet.getTimestamp() + "] "
+          //   + getLandmarksDebugString(landmarks, "right_hand"));
           if (landmarks.getLandmarkCount() > 0) {
-            JSONArray jsonArr = convertLandmarksToJson(landmarks);
             synchronized(this) {
-              try {
-                jsonObj.put("right_hand_landmarks", jsonArr);
-                jsonObj.put("right_hand_landmarks_stamp", packet.getTimestamp());
-              } catch (JSONException e) {
-                Log.e(TAG, "Right hand: " + e.getMessage());
-              }
+              jsonRHandArr = convertLandmarksToJson(landmarks);
+              right_hand_stamp = packet.getTimestamp();
             }
           }
         } catch (InvalidProtocolBufferException exception) {
@@ -257,12 +266,11 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
   public final void onSensorChanged(SensorEvent event) {
     synchronized(this) {
       try {
-        JSONArray jsonArr = new JSONArray();
+        jsonGravityArr = new JSONArray();
         for (int i = 0; i < 3; i++) {
-          jsonArr.put(event.values[i]);
+          jsonGravityArr.put(event.values[i]);
         }
-        jsonObj.put("gravity", jsonArr);
-        jsonObj.put("gravity_stamp", event.timestamp);
+        gravity_stamp = event.timestamp;
       } catch (JSONException e) {
         Log.e(TAG, "Gravity: " + e.getMessage());
       }
