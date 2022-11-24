@@ -58,6 +58,8 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
   private SensorManager sensorManager;
   private Sensor sensor;
 
+  private boolean is_sent;
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -80,25 +82,14 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
     sensor = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
 
+    is_sent = true;
+
     // pose
     processor.addPacketCallback(
       "pose_landmarks",
       (packet) -> {
         // Log.v(TAG, "Received pose landmarks packet.");
         try {
-          JSONObject jsonObj = new JSONObject();
-
-          // camera params
-          JSONObject cameraParams = new JSONObject();
-          try {
-            cameraParams.put("focal_length", cameraHelper.getFocalLengthPixels());
-            cameraParams.put("frame_width", cameraHelper.getFrameSize().getWidth());
-            cameraParams.put("frame_height", cameraHelper.getFrameSize().getHeight());
-            jsonObj.put("camera_params", cameraParams);
-          } catch (JSONException e) {
-            Log.e(TAG, "CameraParams: " + e.getMessage());
-          }
-
           byte[] landmarksRaw = PacketGetter.getProtoBytes(packet);
           NormalizedLandmarkList landmarks =
             NormalizedLandmarkList.parseFrom(landmarksRaw);
@@ -106,43 +97,16 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
           //   "[TS:" + packet.getTimestamp() + "] "
           //   + getLandmarksDebugString(landmarks, "pose"));
           if (landmarks.getLandmarkCount() > 0) {
-            jsonPoseArr = convertLandmarksToJson(landmarks);
-            pose_stamp = packet.getTimestamp();
             synchronized(this) {
-              try {
-                jsonObj.put("pose_landmarks", jsonPoseArr);
-                jsonObj.put("pose_landmarks_stamp", pose_stamp);
-
-                // check timestamp for each landmarks
-                if ((pose_world_stamp - pose_stamp) > -3e5) {
-                  jsonObj.put("pose_world_landmarks", jsonPoseWorldArr);
-                  jsonObj.put("pose_world_landmarks_stamp", pose_world_stamp);
+              jsonPoseArr = convertLandmarksToJson(landmarks);
+              pose_stamp = packet.getTimestamp();
+              if (is_sent) {
+                is_sent = false;
+              } else {
+                if ((pose_stamp - pose_world_stamp) < 16000) {
+                  sendJsonData(pose_stamp);
+                  is_sent = true;
                 }
-
-                if ((face_stamp - pose_stamp) > -3e5) {
-                  jsonObj.put("face_landmarks", jsonFaceArr);
-                  jsonObj.put("face_landmarks_stamp", face_stamp);
-                }
-
-                if ((right_hand_stamp - pose_stamp) > -3e5) {
-                  jsonObj.put("right_hand_landmarks", jsonRHandArr);
-                  jsonObj.put("right_hand_landmarks_stamp", right_hand_stamp);
-                }
-
-                if ((left_hand_stamp - pose_stamp) > -3e5) {
-                  jsonObj.put("left_hand_landmarks", jsonLHandArr);
-                  jsonObj.put("left_hand_landmarks_stamp", left_hand_stamp);
-                }
-
-                if ((gravity_stamp - pose_stamp) > -3e5) {
-                  jsonObj.put("gravity", jsonGravityArr);
-                  jsonObj.put("gravity_stamp", gravity_stamp);
-                }
-
-                // call setJsonData ONLY in pose_landmarks
-                sender.setJsonData(jsonObj);
-              } catch (JSONException e) {
-                Log.e(TAG, "Pose: " + e.getMessage());
               }
             }
           }
@@ -167,6 +131,14 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
             synchronized(this) {
               jsonPoseWorldArr = convertLandmarksToJson(landmarks);
               pose_world_stamp = packet.getTimestamp();
+              if (is_sent) {
+                is_sent = false;
+              } else {
+                if ((pose_world_stamp - pose_stamp) < 16000) {
+                  sendJsonData(pose_world_stamp);
+                  is_sent = true;
+                }
+              }
             }
           }
         } catch (InvalidProtocolBufferException exception) {
@@ -277,6 +249,59 @@ public class MainActivity extends com.google.mediapipe.apps.basic.MainActivity i
     }
   }
 
+
+  private void sendJsonData(long base_stamp) {
+    JSONObject jsonObj = new JSONObject();
+
+    // camera params
+    JSONObject cameraParams = new JSONObject();
+    try {
+      cameraParams.put("focal_length", cameraHelper.getFocalLengthPixels());
+      cameraParams.put("frame_width", cameraHelper.getFrameSize().getWidth());
+      cameraParams.put("frame_height", cameraHelper.getFrameSize().getHeight());
+      jsonObj.put("camera_params", cameraParams);
+    } catch (JSONException e) {
+      Log.e(TAG, "CameraParams: " + e.getMessage());
+    }
+
+    try {
+      // check timestamp for each landmarks
+      if ((pose_stamp - base_stamp) > -3e5) {
+        jsonObj.put("pose_landmarks", jsonPoseArr);
+        jsonObj.put("pose_landmarks_stamp", pose_stamp);
+      }
+
+      if ((pose_world_stamp - base_stamp) > -3e5) {
+        jsonObj.put("pose_world_landmarks", jsonPoseWorldArr);
+        jsonObj.put("pose_world_landmarks_stamp", pose_world_stamp);
+      }
+
+      if ((face_stamp - base_stamp) > -3e5) {
+        jsonObj.put("face_landmarks", jsonFaceArr);
+        jsonObj.put("face_landmarks_stamp", face_stamp);
+      }
+
+      if ((right_hand_stamp - base_stamp) > -3e5) {
+        jsonObj.put("right_hand_landmarks", jsonRHandArr);
+        jsonObj.put("right_hand_landmarks_stamp", right_hand_stamp);
+      }
+
+      if ((left_hand_stamp - base_stamp) > -3e5) {
+        jsonObj.put("left_hand_landmarks", jsonLHandArr);
+        jsonObj.put("left_hand_landmarks_stamp", left_hand_stamp);
+      }
+
+      if ((gravity_stamp - base_stamp) > -3e5) {
+        jsonObj.put("gravity", jsonGravityArr);
+        jsonObj.put("gravity_stamp", gravity_stamp);
+      }
+
+      // call setJsonData ONLY in this function
+      sender.setJsonData(jsonObj);
+    } catch (JSONException e) {
+      Log.e(TAG, "Pose: " + e.getMessage());
+    }
+  }
 
   private static String getLandmarksDebugString(NormalizedLandmarkList landmarks, String streamName) {
     String landmarkStr = streamName + " landmarks: " + landmarks.getLandmarkCount() + "\n";
