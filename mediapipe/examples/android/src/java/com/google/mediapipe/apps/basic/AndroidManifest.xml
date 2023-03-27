@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.google.mediapipe.apps.basic">
+    package="com.google.mediapipe.apps.basic"
+    xmlns:tools="http://schemas.android.com/tools">
 
   <uses-sdk
       android:minSdkVersion="21"
@@ -12,6 +13,7 @@
 
   <!-- For profiling -->
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+  <uses-permission android:name="android.permission.INTERNET" />
 
   <application
       android:allowBackup="true"
@@ -29,6 +31,15 @@
               <category android:name="android.intent.category.LAUNCHER" />
           </intent-filter>
       </activity>
+
+      <activity
+            android:name=".SettingsActivity"
+            android:parentActivityName="${mainActivity}"
+            tools:replace="android:parentActivityName">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="${mainActivity}" />
+        </activity>
 
       <meta-data android:name="cameraFacingFront" android:value="${cameraFacingFront}"/>
       <meta-data android:name="binaryGraphName" android:value="${binaryGraphName}"/>

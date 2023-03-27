@@ -27,6 +27,7 @@ android_library(
         "//mediapipe/java/com/google/mediapipe/framework:android_framework",
         "//mediapipe/java/com/google/mediapipe/glutil",
         "//third_party:androidx_appcompat",
+        "//third_party:androidx_preference",
         "//third_party:androidx_constraint_layout",
         "//third_party:opencv",
         "@maven//:androidx_concurrent_concurrent_futures",

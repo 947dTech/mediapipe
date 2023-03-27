@@ -410,6 +410,7 @@ maven_install(
         "androidx.fragment:fragment:1.3.4",
         "androidx.annotation:annotation:aar:1.1.0",
         "androidx.appcompat:appcompat:aar:1.1.0-rc01",
+        "androidx.preference:preference:1.1.1",
         "androidx.camera:camera-core:1.0.0-beta10",
         "androidx.camera:camera-camera2:1.0.0-beta10",
         "androidx.camera:camera-lifecycle:1.0.0-beta10",

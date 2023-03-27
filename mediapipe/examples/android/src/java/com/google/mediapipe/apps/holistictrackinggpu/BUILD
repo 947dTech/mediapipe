@@ -51,8 +51,8 @@ android_binary(
     manifest_values = {
         "applicationId": "com.google.mediapipe.apps.holistictrackinggpu",
         "appName": "Holistic Tracking",
-        "mainActivity": "com.google.mediapipe.apps.basic.MainActivity",
-        "cameraFacingFront": "False",
+        "mainActivity": ".MainActivity",
+        "cameraFacingFront": "True",
         "binaryGraphName": "holistic_tracking_gpu.binarypb",
         "inputVideoStreamName": "input_video",
         "outputVideoStreamName": "output_video",
@@ -65,5 +65,6 @@ android_binary(
         "//mediapipe/examples/android/src/java/com/google/mediapipe/apps/basic:basic_lib",
         "//mediapipe/framework/formats:landmark_java_proto_lite",
         "//mediapipe/java/com/google/mediapipe/framework:android_framework",
+        "@com_google_protobuf//:protobuf_javalite",
     ],
 )

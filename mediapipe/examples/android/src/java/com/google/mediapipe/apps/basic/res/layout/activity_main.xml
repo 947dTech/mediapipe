@@ -17,4 +17,13 @@
             android:gravity="center"
             android:text="@string/no_camera_access" />
     </FrameLayout>
+
+    <androidx.appcompat.widget.Toolbar
+       android:id="@+id/toolbar"
+       android:layout_width="match_parent"
+       android:layout_height="?attr/actionBarSize"
+       android:background="?attr/colorPrimary"
+       android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+       app:popupTheme="@style/ThemeOverlay.AppCompat.Light"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

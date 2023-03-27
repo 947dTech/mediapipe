@@ -232,6 +232,13 @@ android_library(
 )
 
 android_library(
+    name = "androidx_preference",
+    exports = [
+        "@maven//:androidx_preference_preference",
+    ],
+)
+
+android_library(
     name = "androidx_constraint_layout",
     exports = [
         "@maven//:androidx_constraintlayout_constraintlayout",
